@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Twitter Feed Aggregator</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <link rel="icon" href="https://abs.twimg.com/favicons/twitter.ico"> <!-- Old Twitter Icon as favicon -->
+    <style>
+        /* Global Styles */
+        body {
+            padding: 20px;
+            max-width: 700px;
+            margin: auto;
+            background-color: #f0f8ff;
+            font-family: Arial, sans-serif;
+        }
+
+        /* Header Style */
+        .header {
+            text-align: center;
+            margin-bottom: 20px;
+            color: #1DA1F2;
+            font-family: "Courier New", Courier, monospace;
+            font-size: 2.5em;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+        .header img {
+            width: 40px;
+            height: 40px;
+        }
+
+        /* Loader Style */
+        .loader {
+            display: none;
+            border: 4px solid #f3f3f3;
+            border-radius: 50%;
+            border-top: 4px solid #1DA1F2;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Tweet Card Style */
+        .tweet-container {
+            margin-top: 20px;
+        }
+        .tweet-card {
+            background-color: #ffffff;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            padding: 20px;
+            margin-bottom: 15px;
+            border: 1px solid #e1e8ed;
+            display: flex;
+            flex-direction: row;
+            gap: 15px;
+            transition: transform 0.2s;
+        }
+        .tweet-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+        }
+
+        /* Profile Picture */
+        .tweet-profile img {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+        }
+
+        /* Tweet Content */
+        .tweet-content {
+            flex: 1;
+        }
+        .tweet-username {
+            font-weight: bold;
+            color: #333;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .tweet-username a {
+            color: #1DA1F2;
+            text-decoration: none;
+        }
+        .tweet-text {
+            font-size: 1em;
+            color: #444;
+            margin: 5px 0;
+        }
+        .tweet-time {
+            font-size: 0.85em;
+            color: #777;
+            margin-top: 5px;
+        }
+
+        /* Tweet Actions */
+        .tweet-actions {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.9em;
+            color: #1DA1F2;
+            margin-top: 10px;
+        }
+        .tweet-actions span {
+            cursor: pointer;
+        }
+
+        /* Mobile Responsiveness */
+        @media (max-width: 600px) {
+            .tweet-card {
+                flex-direction: column;
+                align-items: center;
+                padding: 15px;
+            }
+            .tweet-profile img {
+                width: 40px;
+                height: 40px;
+            }
+            .header {
+                font-size: 2em;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Header with Retro Icon and Style -->
+    <div class="header">
+        <img src="https://abs.twimg.com/favicons/twitter.ico" alt="Old Twitter Logo">
+        <span>X Feed Aggregator</span>
+    </div>
+
+    <!-- Search Form -->
+    <form id="usernameForm" class="form-inline justify-content-center">
+        <div class="form-group">
+            <label for="username" class="sr-only">Enter Twitter Username:</label>
+            <input type="text" id="username" name="username" class="form-control" placeholder="Username" required>
+        </div>
+        <button type="submit" class="btn btn-primary ml-2">Search</button>
+    </form>
+
+    <!-- Error Message -->
+    <div id="errorContainer" class="error-message mt-3"></div>
+
+    <!-- Loader -->
+    <div class="loader" id="loader"></div>
+
+    <!-- Tweets Container -->
+    <div id="tweetsContainer" class="tweet-container"></div>
+
+    <script async src="https://platform.twitter.com/widgets.js" charset="utf-8"></script>
+    <script>
+        document.getElementById('usernameForm').onsubmit = async function(event) {
+            event.preventDefault();
+            const username = document.getElementById('username').value;
+            const tweetsContainer = document.getElementById('tweetsContainer');
+            const errorContainer = document.getElementById('errorContainer');
+            const loader = document.getElementById('loader');
+
+            tweetsContainer.innerHTML = ''; // Clear previous tweets
+            errorContainer.innerHTML = '';
+            loader.style.display = 'block'; // Show loader
+
+            try {
+                const response = await fetch('/get_tweets', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`Error ${response.status}: ${response.statusText}`);
+                }
+
+                const data = await response.json();
+                loader.style.display = 'none'; // Hide loader
+
+                if (Array.isArray(data) && data.length > 0) {
+                    data.forEach(tweet => {
+                        const tweetHtml = `
+                            <div class="tweet-card">
+                                <div class="tweet-profile">
+                                    <img src="${tweet.profile_image_url || 'https://abs.twimg.com/sticky/default_profile_images/default_profile_400x400.png'}" alt="Profile Picture">
+                                </div>
+                                <div class="tweet-content">
+                                    <div class="tweet-username"><a href="https://twitter.com/${tweet.username}" target="_blank">${tweet.name}</a> <span>@${tweet.username}</span></div>
+                                    <div class="tweet-text">${tweet.text}</div>
+                                    ${tweet.media_url ? `<div class="tweet-media"><img src="${tweet.media_url}" alt="Tweet Media" class="img-fluid rounded"></div>` : ''}
+                                    ${tweet.video_url ? `<div class="tweet-media"><video controls src="${tweet.video_url}"></video></div>` : ''}
+                                    <div class="tweet-time">${new Date(tweet.created_at).toLocaleString()}</div>
+                                    <div class="tweet-actions">
+                                        <span>❤️ ${tweet.likes_count || 0}</span>
+                                        <span>💬 ${tweet.reply_count || 0}</span>
+                                        <span>🔗 Copy link</span>
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                        tweetsContainer.innerHTML += tweetHtml;
+                    });
+                } else {
+                    tweetsContainer.innerHTML = `<div>No tweets found for this user.</div>`;
+                }
+            } catch (error) {
+                loader.style.display = 'none'; // Hide loader
+                errorContainer.innerHTML = `<div>${error.message || "Unexpected error occurred. Please try again."}</div>`;
+            }
+        };
+    </script>
+</body>
+</html>
